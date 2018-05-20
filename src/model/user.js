@@ -14,13 +14,26 @@ const UserSchema = new mongoose.Schema({
     required: true,
     // minimum eight characters, at least one letter and one number
     validate: e => /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(e)
-  }
+  },
+  calendars: [{ type: mongoose.Schema.ObjectId, ref: 'Calendar' }]
+});
+
+UserSchema.pre('validate', function(next) {
+
+  // if password has not change, skip validator
+  if (!this.isModified('password')) {
+    this.$ignore('password');
+  };
+
+  next();
 });
 
 UserSchema.pre('save', function(next) {
 
   // password hasnt changed
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) {
+    return next();
+  };
 
   // hash password
   bcrypt.hash(this.password, 5, (err, hash) => {
