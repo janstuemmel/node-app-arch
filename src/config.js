@@ -1,7 +1,12 @@
 const config = require('rc')('app', {
 
-  // mongo db connection string
-  db: 'mongodb://db/app',
+  db: {
+    driver: 'mysql',
+    host: 'db',
+    user: 'app',
+    password: 'app',
+    name: 'app',
+  },
 
   // secret for jwt
   secret: 's3cret'

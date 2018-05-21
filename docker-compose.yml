@@ -5,15 +5,39 @@ services:
     image: node
     command: tail -f /dev/null
     working_dir: /app
+    environment:
+      app_db__driver: mysql
+      app_db__host: db
+      app_db__user: app
+      app_db__password: app
+      app_db__name: app
     ports:
       - 1337:1337
     volumes:
       - .:/app
 
   db:
-    image: mongo
+    image: mysql
+    environment:
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
 
-  mongo-admin:
-    image: adicom/admin-mongo
+  test-db:
+    image: mysql
+    environment:
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_ARBITRARY: 1
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
     ports:
-      - 1338:1234
+      - "1336:80"

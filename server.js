@@ -1,6 +1,10 @@
-const mongoose = require('mongoose');
 const app = require('./src');
+const db = require('./src/db');
 
-mongoose.connect('mongodb://db/app');
+// import models to init database
+const models = require('./src/model');
+
+// init database
+db.sync({ force: true });
 
 app.listen(1337);

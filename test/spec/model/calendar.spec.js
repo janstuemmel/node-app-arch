@@ -1,58 +1,45 @@
 const Calendar = require('../../../src/model/calendar');
 const User = require('../../../src/model/user');
+const Role = require('../../../src/model/role');
+
+const { resetDatabase } = require('../../util');
+
+const TEST_USER = { email: 'foo@bar.com', password: 'fo0barbaz' };
 
 describe('calendar model tests', () => {
 
-  let testUser1;
+  let testUser;
 
   beforeEach(async () => {
-    testUser1 = new User({ email: 't@t.com', password: 'fo0barbaz' });
-    await testUser1.save();
+    await resetDatabase();
+    testUser = await User.create(TEST_USER);
   });
 
-  afterEach(async () => await User.remove({}));
 
-  afterEach(async () => await Calendar.remove({}));
-
-
-  it('should create calendar with owner', async () => {
+  it('should create calendar', async () => {
 
     // given
-    const testCal = await Calendar.create({ name: 'test', users: [
-      { role: 'owner', user: testUser1 }
-    ]});
+    await Calendar.create({ name: 'foo' });
 
     // when
-    const cal = await Calendar.findOne().populate('users.user').exec();
+    const cal = await Calendar.findOne();
 
     // then
-    expect(cal).toMatchObject({
-      name: 'test',
-      users: expect.arrayContaining([
-        expect.objectContaining({ role: 'owner', user: expect.any(User) })
-      ])
-    });
+    expect(cal.dataValues).toMatchObject({ id: 1, name: 'foo' });
   });
 
 
-  it('should create calender ref in user', async () => {
+  it('add users to cal', async () => {
 
     // given
-    const cal = await Calendar.create({ name: 'test', users: [
-      { role: 'owner', user: testUser1 }
-    ]});
+    const cal = await Calendar.create({ name: 'foo' });
 
     // when
-    const user = await User.findOne().populate('calendars').exec();
+    await cal.addUser(testUser, { through: { role: 'user' }});
 
     // then
-    expect(user).toMatchObject({
-      email: 't@t.com',
-      calendars: expect.arrayContaining([ expect.any(Calendar) ])
-    });
+    expect(await cal.getUsers()).toHaveLength(1);
   });
-
-
 
 
 });

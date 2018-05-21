@@ -14,21 +14,17 @@ const jwtOpts = {
 
 passport.use(new BasicStrategy((email, password, cb) => {
 
-  User.findOne({ email: email }, (err, user) => {
+  User.findOne({ where: { email: email }, attributes: { include: 'password' } })
+    .then(user => {
 
-    if (err) return cb(err, false);
+      if (!user) return cb(null, false);
 
-    if (!user) return cb(null, false, 'user not found');
+      user.verifyPassword(password)
+        .then(() => cb(null, user))
+        .catch(err => cb(null, false))
 
-    user.verifyPassword(password, (err, isMatch) => {
-
-      if (err) return cb(err, false);
-
-      if (!isMatch) return cb(null, false, 'bad password')
-
-      return cb(null, user);
-    });
-  });
+    })
+    .catch(err => cb(err, false));
 }));
 
 
@@ -36,15 +32,16 @@ module.exports.authBasic = authenticate('basic');
 
 passport.use(new JwtStrategy(jwtOpts, (payload, cb) => {
 
-  User.findById(payload.id, (err, user) => {
+  User.findById(payload.id)
+    .then(user => {
 
-    if (err) return cb(err, false);
+      if (!user) return cb(null, false);
 
-    if (!user) return cb(null, false);
+      return cb(null, user);
 
-    return cb(null, user);
+    })
+    .catch(err => cb(err, false));
 
-  });
 }));
 
 module.exports.authJwt = authenticate('jwt');
@@ -63,9 +60,12 @@ function authFailResponse(message) {
   return { auth: false, token: null, message: message };
 }
 
+// custom error handling (not just 401)
 function authenticate(strategy) {
   return (req, res, next) => {
     passport.authenticate(strategy, { session: false }, (err, user, info) => {
+
+      // console.log(err);
 
       if (err) return res.status(401).json(authFailResponse('auth.fail'));
 

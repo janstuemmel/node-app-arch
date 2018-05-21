@@ -1,61 +1,43 @@
-const mongoose = require('mongoose');
+const Sequelize = require('sequelize');
 const bcrypt = require('bcrypt');
+const db = require('../db');
 
-const UserSchema = new mongoose.Schema({
+const User = db.define('user', {
   email: {
-    type: String,
-    required: true,
+    type: Sequelize.STRING,
     unique: true,
-    validate: e => /^([\w-\\.]+@([\w-]+\.)+[\w-]{2,4})?$/.test(e)
+    validate: { isEmail: true },
+    allowNull: false
   },
-  password: {
-    type: String,
-    // select: false, // TODO: dont send password
-    required: true,
-    // minimum eight characters, at least one letter and one number
-    validate: e => /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(e)
-  },
-  calendars: [{ type: mongoose.Schema.ObjectId, ref: 'Calendar' }]
+  password: { type: Sequelize.STRING, allowNull: false }
+}, {
+  defaultScope: { attributes: { exclude: [ 'password' ] } }
 });
 
-UserSchema.pre('validate', function(next) {
+module.exports = User;
 
-  // if password has not change, skip validator
-  if (!this.isModified('password')) {
-    this.$ignore('password');
-  };
+User.beforeCreate((user, opt) => {
 
-  next();
-});
+  // return promise
+  return bcrypt.hash(user.password, 5).then(hash => {
 
-UserSchema.pre('save', function(next) {
-
-  // password hasnt changed
-  if (!this.isModified('password')) {
-    return next();
-  };
-
-  // hash password
-  bcrypt.hash(this.password, 5, (err, hash) => {
-
-    if (err) return next(err);
-
-    this.password = hash;
-
-    return next();
+    // set has as password
+    user.password = hash;
   });
 });
 
-UserSchema.methods.verifyPassword = function(password, cb) {
+User.prototype.verifyPassword = function(password) {
 
-  bcrypt.compare(password, this.password, (err, isMatch) => {
+  return new Promise((res, rej) => {
 
-    if (err) return cb(err);
+    bcrypt.compare(password, this.password, (err, isMatch) => {
 
-    cb(null, isMatch);
+      if (err) return rej(err);
+
+      if (!isMatch) return rej(new Error('password not valid'))
+
+      return res();
+
+    });
   });
-};
-
-const UserModel = mongoose.model('User', UserSchema);
-
-module.exports = UserModel;
+}

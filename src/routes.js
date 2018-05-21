@@ -1,15 +1,33 @@
 const router = require('express').Router();
-const userController = require('./controller/user');
-const authController = require('./controller/auth');
+
+const user = require('./controller/user');
+const auth = require('./controller/auth');
+const calendar = require('./controller/calendar');
 
 router.route('/user')
-  .get(userController.getUsers)
-  .post(userController.postUser);
+  .post(user.postUser);
+
+router.route('/calendar')
+  .post(auth.authJwt, calendar.post);
+
+router.route('/calendar/:calId')
+  .get(auth.authJwt)
+  .put(auth.authJwt, calendar.put)
+  .delete(auth.authJwt, calendar.delete);
+
+router.route('/calendar/:calId/user')
+  .get(auth.authJwt);
+
+router.route('/calendar/:calId/user/:userId')
+  .get(auth.authJwt)
+  .post(auth.authJwt, calendar.addUser)
+  .put(auth.authJwt)
+  .delete(auth.authJwt);
 
 router.route('/auth/login')
-  .post(authController.authBasic, authController.login);
+  .post(auth.authBasic, auth.login);
 
 router.route('/auth/authenticated')
-  .get(authController.authJwt, (req, res) => res.json(req.user));
+  .get(auth.authJwt, (req, res) => res.json(req.user));
 
 module.exports = router;

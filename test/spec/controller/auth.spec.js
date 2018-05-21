@@ -1,20 +1,18 @@
 const createTestServer = require('testtp');
 const express = require('express');
 
+const { resetDatabase } = require('../../util');
+
 const User = require('../../../src/model/user');
 const authController = require('../../../src/controller/auth');
 const util = require('../../../src/util');
 
 describe('auth controller tests', () => {
 
-  // create a test user for each test
-  beforeEach(done => {
-    const user = new User({ email: 'test@example.com', password: 'fo0barbaz' });
-    user.save(done);
+  beforeEach(async () => {
+    await resetDatabase();
+    await User.create({ email: 'test@example.com', password: 'fo0barbaz' });
   });
-
-  // remove test user
-  afterEach(done => User.remove({}, done));
 
   describe('basic auth', () => {
 
@@ -106,7 +104,7 @@ describe('auth controller tests', () => {
     it('should authorize jwt', async () => {
 
       // given
-      const user = await User.findOne({});
+      const user = await User.findOne();
       const token = util.tokenSign(user.id);
       const headers = {
         Authorization: 'Bearer ' + token
@@ -126,7 +124,7 @@ describe('auth controller tests', () => {
     it('should not authorize jwt - wrong token', async () => {
 
       // given
-      const user = await User.findOne({});
+      const user = await User.findOne();
       const token = util.tokenSign(user.id);
       const headers = {
         Authorization: 'Bearer ' +
