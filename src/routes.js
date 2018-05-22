@@ -1,5 +1,7 @@
 const router = require('express').Router();
 
+const { errorHandler } = require('./util');
+
 const user = require('./controller/user');
 const auth = require('./controller/auth');
 const calendar = require('./controller/calendar');
@@ -16,11 +18,11 @@ router.route('/calendar/:calId')
   .delete(auth.authJwt, calendar.delete);
 
 router.route('/calendar/:calId/user')
-  .get(auth.authJwt);
+  .get(auth.authJwt)
+  .post(auth.authJwt, calendar.addUser);
 
 router.route('/calendar/:calId/user/:userId')
   .get(auth.authJwt)
-  .post(auth.authJwt, calendar.addUser)
   .put(auth.authJwt)
   .delete(auth.authJwt);
 
@@ -29,5 +31,7 @@ router.route('/auth/login')
 
 router.route('/auth/authenticated')
   .get(auth.authJwt, (req, res) => res.json(req.user));
+
+router.use(errorHandler);
 
 module.exports = router;

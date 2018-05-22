@@ -1,41 +1,38 @@
+const Boom = require('boom');
+
 const Calendar = require('../model/calendar');
 const User = require('../model/user');
 
-module.exports.post = (req, res) => {
+const { routeWrapAsync } = require('../util');
 
-  Calendar.create({ ...req.body })
-    .then(cal => res.send(cal))
-    .catch(err => res.send(err));
-};
+module.exports.post = routeWrapAsync(async (req, res) => {
 
-module.exports.delete = (req, res) => {
-  var calId = req.params.calId;
-  res.json(calId);
-};
+  req.body = req.body || "";
+
+  const cal = await Calendar.create({ ...req.body })
+
+  res.send(cal);
+});
+
+module.exports.delete = (req, res) => {};
 
 module.exports.put = (req, res) => {};
 
-module.exports.addUser = async (req, res) => {
+module.exports.addUser = routeWrapAsync(async (req, res, next) => {
 
-  const userId = req.params.userId;
-  const calId = req.params.calId;
+  const { userId, calId } = req.params;
 
-  try {
+  const user = await User.findOne({ where: { id: userId } });
 
-    const user = await User.findOne({ where: { id: userId } });
-    const cal = await Calendar.findOne({ where: { id: calId } });
+  if (!user) throw Boom.notFound('resource.missing', { entity: 'user', id: userId });
 
+  const cal = await Calendar.findOne({ where: { id: calId } });
 
-    if (!user) return res.send('user not found');
-    if (!cal) return res.send('cal not found');
+  if (!cal) throw Boom.notFound('resource.missing', { entity: 'calendar', id: calId });
 
-    await cal.addUser(user, { through: { role: 'user' } });
+  // add a user to a cal
+  await cal.addUser(user);
 
-    return res.send(cal);
+  res.send(cal);
 
-  } catch (err) {
-
-    return res.send(err);
-  }
-
-};
+});

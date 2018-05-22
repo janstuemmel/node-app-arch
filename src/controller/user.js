@@ -1,12 +1,13 @@
-var User = require('../model/user');
+const User = require('../model/user');
 
+const { routeWrapAsync } = require('../util');
 
-module.exports.postUser = (req, res) => {
+module.exports.postUser = routeWrapAsync(async (req, res) => {
 
   // set empty request body if req.body is undefined
   req.body = req.body || "";
 
-  User.create({ ...req.body })
-    .then(user => res.send(user))
-    .catch(err => res.send(err));
-};
+  const user = await User.create({ ...req.body });
+
+  res.send(user);
+});

@@ -5,6 +5,7 @@ const db = require('./src/db');
 const models = require('./src/model');
 
 // init database
-db.sync({ force: true });
+// db.sync({ force: true });
+db.sync({ alter: true });
 
 app.listen(1337);

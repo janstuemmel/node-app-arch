@@ -36,7 +36,7 @@ describe('user controller tests', () => {
       const body = await res.text();
 
       // then
-      console.log(body);
+      // console.log(body);
     });
 
   });

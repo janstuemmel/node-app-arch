@@ -1,157 +1,117 @@
-const createTestServer = require('testtp');
-const express = require('express');
+const router = require('express').Router();
 
-const { resetDatabase } = require('../../util');
+const { resetDatabase, createTestServer } = require('../../util');
+const { tokenSign } = require('../../../src/util');
 
 const User = require('../../../src/model/user');
 const authController = require('../../../src/controller/auth');
-const util = require('../../../src/util');
 
 describe('auth controller tests', () => {
 
+  let test;
+  const routeSpy = jest.fn((req, res) => res.sendStatus(200));
+  const authBasicSpy = jest.fn(authController.authBasic);
+  const authJwtSpy = jest.fn(authController.authJwt);
+
   beforeEach(async () => {
     await resetDatabase();
-    await User.create({ email: 'test@example.com', password: 'fo0barbaz' });
+    await User.create({ email: 'foo@bar.com', password: 'fo0barbaz' });
   });
 
-  describe('basic auth', () => {
+  // init web server
+  beforeAll( async () => {
+    router.get('/basic', authBasicSpy, routeSpy);
+    router.get('/jwt', authJwtSpy, routeSpy);
+    test = await createTestServer(router);
+  });
 
-    let test;
-    const routeSpy = jest.fn((req, res) => res.send('OK'));
-    const authSpy = jest.fn(authController.authBasic);
+  // close web server
+  afterAll( async () => await test.close());
 
-    // init web server
-    beforeAll( async () => {
-      const app = express();
-      app.get('/', authSpy, routeSpy);
-      test = await createTestServer(app);
-    });
-
-    // close web server
-    afterAll( async () => await test.close());
-
-    // clearing spy functions
-    afterEach(() => {
-      routeSpy.mockClear();
-      authSpy.mockClear();
-    });
-
-
-    it('should authorize basic', async () => {
-
-      // given
-      const headers = {
-        Authorization: genBasicAuthString('test@example.com', 'fo0barbaz')
-      };
-
-      // when
-      const res = await test.get('/', { headers: headers });
-      const body = await res.text();
-
-      // then
-      expect(body).toBe('OK');
-      expect(res.status).toBe(200);
-      expect(routeSpy).toHaveBeenCalled();
-    });
-
-
-    it('should not authorize basic - wrong credentials', async () => {
-
-      // given
-      const headers = {
-        Authorization: genBasicAuthString('not@exists.com', 'fo0barbaz')
-      };
-
-      // when
-      const res = await test.get('/', { headers: headers });
-      const body = await res.json();
-
-      // then
-      expect(body).toMatchObject({
-        auth: false,
-        token: null,
-        message: 'auth.fail.user'
-      });
-      expect(res.status).toBe(401);
-      expect(routeSpy).not.toHaveBeenCalled();
-    });
+  // clearing spy functions
+  afterEach(() => {
+    routeSpy.mockClear();
+    authBasicSpy.mockClear();
+    authJwtSpy.mockClear();
   });
 
 
-  describe('jwt auth', () => {
+  it('should authorize basic', async () => {
 
-    let test;
-    const routeSpy = jest.fn((req, res) => res.send('OK'));
-    const authSpy = jest.fn(authController.authJwt);
+    // given
+    const headers = { Authorization: basicAuth('foo@bar.com', 'fo0barbaz')};
 
-    // init web server
-    beforeAll( async () => {
-      const app = express();
-      app.get('/', authSpy, routeSpy);
-      test = await createTestServer(app);
+    // when
+    const res = await test.get('/basic', { headers: headers });
+
+    // then
+    expect(res.status).toBe(200);
+    expect(routeSpy).toHaveBeenCalled();
+  });
+
+
+  it('should not authorize basic - wrong credentials', async () => {
+
+    // given
+    const headers = { Authorization: basicAuth('not@exists.com', 'fo0barbaz')};
+
+    // when
+    const res = await test.get('/basic', { headers: headers });
+    const body = await res.json();
+
+    // then
+    expect(body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'auth.fail.credentials',
+      data: null
     });
+    expect(res.status).toBe(401);
+    expect(routeSpy).not.toHaveBeenCalled();
+  });
 
-    // close web server
-    afterAll( async () => await test.close());
 
-    // clearing spy functions
-    afterEach(() => {
-      routeSpy.mockClear();
-      authSpy.mockClear();
+  it('should authorize jwt', async () => {
+
+    // given
+    const headers = { Authorization: 'Bearer ' + tokenSign(1) };
+
+    // when
+    const res = await test.get('/jwt', { headers: headers });
+
+    // then
+    expect(res.status).toBe(200);
+    expect(routeSpy).toHaveBeenCalled();
+  });
+
+
+  it('should not authorize jwt - wrong token', async () => {
+
+    // given
+    const headers = {
+      Authorization: 'Bearer ' +
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
+        'b4dp4yl0ad.' + // bad payload
+        'LbGLaeH8wawNdyQ3G9FZJmitKOoTc3Sm9fZLwPYwn7I'
+    };
+
+    // when
+    const res = await test.get('/jwt', { headers: headers });
+    const body = await res.json();
+
+    // then
+    expect(res.status).toBe(401);
+    expect(routeSpy).not.toHaveBeenCalled();
+    expect(body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'auth.fail.credentials',
+      data: null
     });
-
-
-    it('should authorize jwt', async () => {
-
-      // given
-      const user = await User.findOne();
-      const token = util.tokenSign(user.id);
-      const headers = {
-        Authorization: 'Bearer ' + token
-      };
-
-      // when
-      const res = await test.get('/', { headers: headers });
-      const body = await res.text();
-
-      // then
-      expect(body).toBe('OK');
-      expect(res.status).toBe(200);
-      expect(routeSpy).toHaveBeenCalled();
-    });
-
-
-    it('should not authorize jwt - wrong token', async () => {
-
-      // given
-      const user = await User.findOne();
-      const token = util.tokenSign(user.id);
-      const headers = {
-        Authorization: 'Bearer ' +
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
-          'b4dp4yl0ad.' + // bad payload
-          'LbGLaeH8wawNdyQ3G9FZJmitKOoTc3Sm9fZLwPYwn7I'
-      };
-
-      // when
-      const res = await test.get('/', { headers: headers });
-      const body = await res.json();
-
-      // then
-      expect(body).toMatchObject({
-        auth: false,
-        token: null,
-        message: 'auth.fail.user'
-      });
-      expect(res.status).toBe(401);
-      expect(routeSpy).not.toHaveBeenCalled();
-    });
-
-
   });
 
 });
 
-function genBasicAuthString(username, password) {
+function basicAuth(username, password) {
   return 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
 }

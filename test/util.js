@@ -1,4 +1,9 @@
+const createTestServer = require('testtp');
+const express = require('express');
+const bodyParser = require('body-parser');
+
 const db = require('../src/db');
+const { errorHandler } = require('../src/util');
 
 module.exports.resetDatabase = async () => {
 
@@ -8,3 +13,13 @@ module.exports.resetDatabase = async () => {
   // resets database to initial state
   await db.sync({ force: true });
 };
+
+module.exports.createTestServer = async (router) => {
+
+  const app = express();
+  app.use(bodyParser.json());
+  app.use(router);
+  app.use(errorHandler);
+
+  return await createTestServer(app);
+}

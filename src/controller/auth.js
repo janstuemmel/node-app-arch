@@ -1,3 +1,4 @@
+const Boom = require('boom');
 const passport = require('passport');
 const BasicStrategy = require('passport-http').BasicStrategy;
 const JwtStrategy = require('passport-jwt').Strategy;
@@ -54,22 +55,14 @@ module.exports.login = (req, res) => {
   res.json({ auth: true, token: token, message: 'auth.success' });
 }
 
-// HELPERS
-
-function authFailResponse(message) {
-  return { auth: false, token: null, message: message };
-}
-
 // custom error handling (not just 401)
 function authenticate(strategy) {
   return (req, res, next) => {
     passport.authenticate(strategy, { session: false }, (err, user, info) => {
 
-      // console.log(err);
+      if (err) return next(new Error('auth.fail'));
 
-      if (err) return res.status(401).json(authFailResponse('auth.fail'));
-
-      if (!user) return res.status(401).json(authFailResponse('auth.fail.user'));
+      if (!user) return next(Boom.unauthorized('auth.fail.credentials'));
 
       // on success pass user to request object
       req.user = user;

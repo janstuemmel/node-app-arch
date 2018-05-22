@@ -9,7 +9,7 @@ const Role = db.define('role', {
     type: Sequelize.ENUM,
     allowNull: false,
     values: [ 'owner', 'admin', 'user' ],
-    default: 'user'
+    defaultValue: 'user'
   }
 });
 
